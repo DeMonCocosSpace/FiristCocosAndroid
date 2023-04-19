@@ -1,0 +1,43 @@
+
+chip_select.png
+size: 490,110
+format: RGB888
+filter: Linear,Linear
+repeat: none
+effect_circle_04
+  rotate: false
+  xy: 219, 1
+  size: 104, 104
+  orig: 104, 104
+  offset: 0, 0
+  index: -1
+effect_circle_06
+  rotate: false
+  xy: 111, 1
+  size: 106, 108
+  orig: 154, 156
+  offset: 41, 47
+  index: -1
+effect_circle_07
+  rotate: false
+  xy: 1, 1
+  size: 108, 108
+  orig: 108, 108
+  offset: 0, 0
+  index: -1
+effect_circle_line
+  rotate: false
+  xy: 325, 1
+  size: 104, 104
+  orig: 104, 104
+  offset: 0, 0
+  index: -1
+effect_star
+  rotate: false
+  xy: 431, 1
+  size: 58, 58
+  orig: 58, 58
+  offset: 0, 0
+  index: -1
+
+

@@ -1,0 +1,34 @@
+
+common_sec_turn.png
+size: 314,108
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+pay
+  rotate: false
+  xy: 154, 2
+  size: 49, 49
+  orig: 49, 49
+  offset: 0, 0
+  index: -1
+pay_bg
+  rotate: false
+  xy: 154, 53
+  size: 158, 53
+  orig: 158, 53
+  offset: 0, 0
+  index: -1
+pay_phone_straight
+  rotate: true
+  xy: 2, 6
+  size: 100, 150
+  orig: 100, 150
+  offset: 0, 0
+  index: -1
+pay_sec
+  rotate: true
+  xy: 205, 25
+  size: 26, 56
+  orig: 26, 59
+  offset: 0, 3
+  index: -1
