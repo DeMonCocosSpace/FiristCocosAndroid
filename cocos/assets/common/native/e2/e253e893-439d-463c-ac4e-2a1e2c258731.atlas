@@ -1,0 +1,111 @@
+
+tk_firstdep_ball_coin_amin.png
+size: 878,877
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+jinbi_01
+  rotate: false
+  xy: 1, 98
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+jinbi_02
+  rotate: false
+  xy: 626, 484
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+jinbi_03
+  rotate: false
+  xy: 142, 98
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+jinbi_04
+  rotate: false
+  xy: 283, 99
+  size: 140, 139
+  orig: 140, 140
+  offset: 0, 1
+  index: -1
+jinbi_05
+  rotate: false
+  xy: 626, 208
+  size: 140, 134
+  orig: 140, 140
+  offset: 0, 3
+  index: -1
+jinbi_06
+  rotate: true
+  xy: 767, 484
+  size: 140, 107
+  orig: 140, 140
+  offset: 0, 18
+  index: -1
+jinbi_07
+  rotate: false
+  xy: 424, 99
+  size: 140, 139
+  orig: 140, 140
+  offset: 0, 1
+  index: -1
+jinbi_08
+  rotate: false
+  xy: 626, 343
+  size: 140, 140
+  orig: 140, 140
+  offset: 0, 0
+  index: -1
+linght_circle
+  rotate: false
+  xy: 1, 239
+  size: 624, 637
+  orig: 658, 658
+  offset: 19, 4
+  index: -1
+ray_00
+  rotate: false
+  xy: 626, 625
+  size: 251, 251
+  orig: 251, 251
+  offset: 0, 0
+  index: -1
+ribbon05_1
+  rotate: false
+  xy: 565, 159
+  size: 35, 79
+  orig: 35, 79
+  offset: 0, 0
+  index: -1
+ribbon05_2
+  rotate: true
+  xy: 73, 62
+  size: 35, 79
+  orig: 52, 104
+  offset: 9, 15
+  index: -1
+ribbon05_4
+  rotate: false
+  xy: 767, 388
+  size: 35, 95
+  orig: 52, 104
+  offset: 9, 5
+  index: -1
+ribbon05_7
+  rotate: false
+  xy: 767, 320
+  size: 35, 67
+  orig: 52, 104
+  offset: 9, 19
+  index: -1
+star
+  rotate: false
+  xy: 1, 25
+  size: 71, 72
+  orig: 78, 78
+  offset: 4, 3
+  index: -1
