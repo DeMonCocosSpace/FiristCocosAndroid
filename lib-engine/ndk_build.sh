@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 APP_ANDROID_ROOT=$DIR
-COCOS2D_X_ROOT=${APP_ANDROID_ROOT}/../../../cocos2d-x
+COCOS2D_X_ROOT=${APP_ANDROID_ROOT}/../cocos/cocos2d-x
 COCOS2D_X_COCOS=${COCOS2D_X_ROOT}/cocos
 COCOS2D_X_EXTERNAL=${COCOS2D_X_ROOT}/external
 # PROTOBUF_ROOT=${APP_ANDROID_ROOT}/../../../protobuf
