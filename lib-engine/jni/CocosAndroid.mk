@@ -11,10 +11,10 @@ LOCAL_ARM_MODE := arm
 endif
 
 LOCAL_SRC_FILES := cpp/main.cpp \
-				   ../cocos/Classes/AppDelegate.cpp \
-				   ../cocos/Classes/jsb_module_register.cpp \
+				   ../../cocos/frameworks/runtime-src/Classes/AppDelegate.cpp \
+				   ../../cocos/frameworks/runtime-src/Classes/jsb_module_register.cpp \
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH)/../cocos/Classes
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/../../cocos/frameworks/runtime-src/Classes
 
 LOCAL_STATIC_LIBRARIES := cocos2dx_static
 
