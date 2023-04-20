@@ -2267,7 +2267,7 @@
 		BA21054921008AC300E19975 /* CCEventAssetsManagerEx.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CCEventAssetsManagerEx.cpp; sourceTree = "<group>"; };
 		BA21054A21008AC300E19975 /* CCEventAssetsManagerEx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CCEventAssetsManagerEx.h; sourceTree = "<group>"; };
 		BA21054D21008AC300E19975 /* Manifest.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Manifest.cpp; sourceTree = "<group>"; };
-		BA21054E21008AC300E19975 /* Manifest.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Manifest.h; sourceTree = "<group>"; };
+		BA21054E21008AC300E19975 /* Manifest.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Manifest.hpp; sourceTree = "<group>"; };
 		BA21054F21008AC300E19975 /* cocos-ext.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "cocos-ext.h"; sourceTree = "<group>"; };
 		BA21055021008AC300E19975 /* ExtensionExport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ExtensionExport.h; sourceTree = "<group>"; };
 		BA21055121008AC300E19975 /* ExtensionMacros.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ExtensionMacros.h; sourceTree = "<group>"; };
@@ -3692,7 +3692,7 @@
 				BA21054921008AC300E19975 /* CCEventAssetsManagerEx.cpp */,
 				BA21054A21008AC300E19975 /* CCEventAssetsManagerEx.h */,
 				BA21054D21008AC300E19975 /* Manifest.cpp */,
-				BA21054E21008AC300E19975 /* Manifest.h */,
+				BA21054E21008AC300E19975 /* Manifest.hpp */,
 			);
 			path = "assets-manager";
 			sourceTree = "<group>";
@@ -5466,6 +5466,7 @@
 					"\"$(SRCROOT)/../external/mac/libs\"",
 				);
 				MACH_O_TYPE = staticlib;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				OTHER_CFLAGS = "-DCC_NEW_RENDERER";
 				OTHER_LDFLAGS = "-llibsql3";
 				USER_HEADER_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../external/mac/include $(SRCROOT)/../external/sources $(SRCROOT)/../external/mac/include/freetype $(SRCROOT)/../external/mac/include/spidermonkey $(SRCROOT)/../external/mac/include/chakracore $(SRCROOT)/../external/mac/include/uv $(SRCROOT)/../external/mac/include/v8 $(SRCROOT)/../cocos/editor-support/";
@@ -5497,6 +5498,7 @@
 					"\"$(SRCROOT)/../external/mac/libs\"",
 				);
 				MACH_O_TYPE = staticlib;
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
 				OTHER_LDFLAGS = "-llibsql3";
 				USER_HEADER_SEARCH_PATHS = "$(inherited) $(SRCROOT)/../external/mac/include $(SRCROOT)/../external/sources $(SRCROOT)/../external/mac/include/freetype $(SRCROOT)/../external/mac/include/spidermonkey $(SRCROOT)/../external/mac/include/chakracore $(SRCROOT)/../external/mac/include/uv $(SRCROOT)/../external/mac/include/v8 $(SRCROOT)/../cocos/editor-support/";
 			};
@@ -5512,6 +5514,8 @@
 				ENABLE_BITCODE = NO;
 				EXCLUDED_ARCHS = "";
 				EXECUTABLE_PREFIX = "";
+				EXLUDED_ARCHS = "";
+				"EXLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "../cocos/platform/ios/cocos2d-prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -5557,6 +5561,8 @@
 				ENABLE_BITCODE = NO;
 				EXCLUDED_ARCHS = "";
 				EXECUTABLE_PREFIX = "";
+				EXLUDED_ARCHS = "";
+				"EXLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "../cocos/platform/ios/cocos2d-prefix.pch";

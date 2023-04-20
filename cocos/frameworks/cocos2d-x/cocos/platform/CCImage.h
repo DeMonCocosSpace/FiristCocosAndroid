@@ -25,7 +25,6 @@ THE SOFTWARE.
 
 #ifndef __CC_IMAGE_H__
 #define __CC_IMAGE_H__
-/// @cond DO_NOT_SHOW
 
 #include "base/CCRef.h"
 #include "platform/CCGL.h"
@@ -34,8 +33,6 @@ THE SOFTWARE.
 #include <string>
 #include <map>
 
-// premultiply alpha, or the effect will wrong when want to use other pixel format in Texture2D,
-// such as RGB888, RGB5A1
 #define CC_RGB_PREMULTIPLY_ALPHA(vr, vg, vb, va) \
     (unsigned)(((unsigned)((unsigned char)(vr) * ((unsigned char)(va) + 1)) >> 8) | \
     ((unsigned)((unsigned char)(vg) * ((unsigned char)(va) + 1) >> 8) << 8) | \
@@ -70,29 +67,16 @@ public:
     /** Supported formats for Image */
     enum class Format
     {
-        //! JPEG
         JPG,
-        //! PNG
         PNG,
-        //! TIFF
         TIFF,
-        //! WebP
         WEBP,
-        //! PVR
         PVR,
-        //! ETC
         ETC,
-        //! ETC2
         ETC2,
-        //! S3TC
         S3TC,
-        //! ATITC
-//        ATITC,
-        //! TGA
         TGA,
-        //! Raw Data
         RAW_DATA,
-        //! Unknown format
         UNKNOWN
     };
 
@@ -101,53 +85,29 @@ public:
      */
     enum class PixelFormat
     {
-        //! auto detect the type
         AUTO,
-        //! 32-bit texture: BGRA8888
         BGRA8888,
-        //! 32-bit texture: RGBA8888
         RGBA8888,
-        //! 24-bit texture: RGBA888
         RGB888,
-        //! 16-bit texture without Alpha channel
         RGB565,
-        //! 8-bit textures used as masks
         A8,
-        //! 8-bit intensity texture
         I8,
-        //! 16-bit textures used as masks
         AI88,
-        //! 16-bit textures: RGBA4444
         RGBA4444,
-        //! 16-bit textures: RGB5A1
         RGB5A1,
-        //! 4-bit PVRTC-compressed texture: PVRTC4
         PVRTC4,
-        //! 4-bit PVRTC-compressed texture: PVRTC4 (has alpha channel)
         PVRTC4A,
-        //! 2-bit PVRTC-compressed texture: PVRTC2
         PVRTC2,
-        //! 2-bit PVRTC-compressed texture: PVRTC2 (has alpha channel)
         PVRTC2A,
-        //! ETC-compressed texture: ETC
         ETC,
-        //! ETC-compressed texture: GL_COMPRESSED_RGB8_ETC2
         ETC2_RGB,
-        //! ETC-compressed texture: GL_COMPRESSED_RGBA8_ETC2
         ETC2_RGBA,
-        //! S3TC-compressed texture: S3TC_Dxt1
         S3TC_DXT1,
-        //! S3TC-compressed texture: S3TC_Dxt3
         S3TC_DXT3,
-        //! S3TC-compressed texture: S3TC_Dxt5
         S3TC_DXT5,
-        //! ATITC-compressed texture: ATC_RGB
         ATC_RGB,
-        //! ATITC-compressed texture: ATC_EXPLICIT_ALPHA
         ATC_EXPLICIT_ALPHA,
-        //! ATITC-compressed texture: ATC_INTERPOLATED_ALPHA
         ATC_INTERPOLATED_ALPHA,
-        //! Default texture format: AUTO
         DEFAULT = AUTO,
 
         NONE = -1
@@ -206,10 +166,8 @@ public:
     */
     bool initWithImageData(const unsigned char * data, ssize_t dataLen);
 
-    // @warning kFmtRawData only support RGBA8888
     bool initWithRawData(const unsigned char * data, ssize_t dataLen, int width, int height, int bitsPerComponent, bool preMulti = false);
 
-    // Getters
     inline unsigned char*    getData() const               { return _data; }
     inline ssize_t           getDataLen() const            { return _dataLen; }
     inline Format            getFileType() const           { return _fileType; }
@@ -233,7 +191,7 @@ public:
      @param    isToRGB        whether the image is saved as RGB format.
      */
     bool saveToFile(const std::string &filename, bool isToRGB = true);
-
+    ssize_t mydecode(const unsigned char * data, ssize_t dataLen, unsigned char ** outBuffer);
 protected:
     bool initWithJpgData(const unsigned char *  data, ssize_t dataLen);
     bool initWithPngData(const unsigned char * data, ssize_t dataLen);
@@ -272,16 +230,13 @@ protected:
     PixelFormat _renderFormat;
     MipmapInfo _mipmaps[MIPMAP_MAX];   // pointer to mipmap images
     int _numberOfMipmaps;
-    // false if we can't auto detect the image is premultiplied or not.
     bool _hasPremultipliedAlpha;
     std::string _filePath;
 
 protected:
-    // noncopyable
     Image(const Image&) = delete;
     Image& operator=(const Image&) = delete;
 
-    // nonmoveable
     Image(Image&&) = delete;
     Image& operator=(Image&&) = delete;
 
@@ -302,10 +257,7 @@ protected:
     bool isS3TC(const unsigned char * data,ssize_t dataLen);
 };
 
-// end of platform group
-/// @}
 
 NS_CC_END
 
-/// @endcond
 #endif    // __CC_IMAGE_H__

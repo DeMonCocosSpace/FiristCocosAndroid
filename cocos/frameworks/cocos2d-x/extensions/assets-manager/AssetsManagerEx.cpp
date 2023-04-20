@@ -39,9 +39,9 @@
 NS_CC_EXT_BEGIN
 
 #define VERSION_FILENAME        "version.manifest"
-#define TEMP_MANIFEST_FILENAME  "project.manifest.temp"
+#define TEMP_MANIFEST_FILENAME  "manifest.json.temp"
 #define TEMP_PACKAGE_SUFFIX     "_temp"
-#define MANIFEST_FILENAME       "project.manifest"
+#define MANIFEST_FILENAME       "manifest.json"
 
 #define BUFFER_SIZE    8192
 #define MAX_FILENAME   512
@@ -51,11 +51,26 @@ NS_CC_EXT_BEGIN
 #define SAVE_POINT_INTERVAL 0.1
 
 const std::string AssetsManagerEx::VERSION_ID = "@version";
-const std::string AssetsManagerEx::MANIFEST_ID = "@manifest";
+const std::string AssetsManagerEx::PROJECT_ID = "@project";
+
+void findAndReplaceAll(std::string & data, std::string toSearch, std::string replaceStr)
+{
+    size_t pos = data.find(toSearch);
+    
+    while( pos != std::string::npos)
+    {
+        data.replace(pos, toSearch.size(), replaceStr);
+        pos =data.find(toSearch, pos + toSearch.size());
+    }
+}
 
 // Implementation of AssetsManagerEx
 
-AssetsManagerEx::AssetsManagerEx(const std::string& manifestUrl, const std::string& storagePath)
+
+AssetsManagerEx::AssetsManagerEx(
+                                 const std::string& manifestUrl,
+                                  const std::string& storagePath,
+                                  const std::string& packageUrl/* = ""*/)
 : _updateState(State::UNINITED)
 , _assets(nullptr)
 , _storagePath("")
@@ -80,42 +95,22 @@ AssetsManagerEx::AssetsManagerEx(const std::string& manifestUrl, const std::stri
 , _verifyCallback(nullptr)
 , _inited(false)
 , _canceled(false)
+, _packageUrl(packageUrl)
 {
-    init(manifestUrl, storagePath);
-}
-
-AssetsManagerEx::AssetsManagerEx(const std::string& manifestUrl, const std::string& storagePath, const VersionCompareHandle& handle)
-: _updateState(State::UNINITED)
-, _assets(nullptr)
-, _storagePath("")
-, _tempVersionPath("")
-, _cacheManifestPath("")
-, _tempManifestPath("")
-, _localManifest(nullptr)
-, _tempManifest(nullptr)
-, _remoteManifest(nullptr)
-, _updateEntry(UpdateEntry::NONE)
-, _percent(0)
-, _percentByFile(0)
-, _totalSize(0)
-, _sizeCollected(0)
-, _totalDownloaded(0)
-, _totalToDownload(0)
-, _totalWaitToDownload(0)
-, _nextSavePoint(0.0)
-, _downloadResumed(false)
-, _maxConcurrentTask(32)
-, _currConcurrentTask(0)
-, _versionCompareHandle(handle)
-, _verifyCallback(nullptr)
-, _eventCallback(nullptr)
-, _inited(false)
-{
+    CCLOG("AssetsManagerEx\n%s\n%s\n%s", manifestUrl.c_str(), storagePath.c_str(), packageUrl.c_str());
+    
     init(manifestUrl, storagePath);
 }
 
 void AssetsManagerEx::init(const std::string& manifestUrl, const std::string& storagePath)
 {
+    if (_packageUrl.size() > 0 && _packageUrl[_packageUrl.size() - 1] != '/')
+    {
+        _packageUrl.append("/");
+    }
+    
+    CCLOG("AssetsManagerEx : init packageUrl: %s", _packageUrl.c_str());
+    
     // Init variables
     std::string pointer = StringUtils::format("%p", this);
     _eventName = "__cc_assets_manager_" + pointer;
@@ -163,9 +158,13 @@ AssetsManagerEx::~AssetsManagerEx()
     CC_SAFE_RELEASE(_remoteManifest);
 }
 
-AssetsManagerEx* AssetsManagerEx::create(const std::string& manifestUrl, const std::string& storagePath)
+AssetsManagerEx* AssetsManagerEx::create(
+                                         const std::string& manifestUrl,
+                                         const std::string& storagePath,
+                                         const std::string& packageUrl/*=""*/)
 {
-    AssetsManagerEx* ret = new (std::nothrow) AssetsManagerEx(manifestUrl, storagePath);
+    CCLOG("AssetsManagerEx : create\n%s\n%s\n%s", manifestUrl.c_str(), storagePath.c_str(), packageUrl.c_str());
+    AssetsManagerEx* ret = new (std::nothrow) AssetsManagerEx(manifestUrl, storagePath, packageUrl);
     if (ret)
     {
         ret->autorelease();
@@ -179,10 +178,12 @@ AssetsManagerEx* AssetsManagerEx::create(const std::string& manifestUrl, const s
 
 void AssetsManagerEx::initManifests()
 {
+    CCLOG("AssetsManagerEx : initManifests");
     _inited = true;
     _canceled = false;
     // Init and load temporary manifest
     _tempManifest = new (std::nothrow) Manifest();
+    _tempManifest->setPackageUrl(_packageUrl);
     if (_tempManifest)
     {
         _tempManifest->parseFile(_tempManifestPath);
@@ -223,6 +224,7 @@ void AssetsManagerEx::initManifests()
 
 void AssetsManagerEx::prepareLocalManifest()
 {
+    CCLOG("AssetsManagerEx : prepareLocalManifest");
     // An alias to assets
     _assets = &(_localManifest->getAssets());
 
@@ -232,6 +234,7 @@ void AssetsManagerEx::prepareLocalManifest()
 
 bool AssetsManagerEx::loadLocalManifest(Manifest* localManifest, const std::string& storagePath)
 {
+    CCLOG("AssetsManagerEx : loadLocalManifest storagePath: %s", storagePath.c_str());
     if (_updateState > State::UNINITED)
     {
         return false;
@@ -288,6 +291,16 @@ bool AssetsManagerEx::loadLocalManifest(Manifest* localManifest, const std::stri
         {
             CC_SAFE_RELEASE(_localManifest);
             _localManifest = cachedManifest;
+            
+            if (_packageUrl != "") {
+                _localManifest->setPackageUrl(_packageUrl);
+                _localManifest->setManifestFileUrl(_packageUrl + _manifestUrl);
+                std::string _verManifestUrl = _manifestUrl;
+                findAndReplaceAll(_verManifestUrl, "project", "version");
+                
+                _localManifest->setVersionFileUrl(_packageUrl + _verManifestUrl);
+            }
+            
         }
     }
     prepareLocalManifest();
@@ -308,6 +321,7 @@ bool AssetsManagerEx::loadLocalManifest(Manifest* localManifest, const std::stri
 
 bool AssetsManagerEx::loadLocalManifest(const std::string& manifestUrl)
 {
+    CCLOG("AssetsManagerEx : loadLocalManifest manifestUrl: %s", manifestUrl.c_str());
     if (manifestUrl.size() == 0)
     {
         return false;
@@ -330,6 +344,13 @@ bool AssetsManagerEx::loadLocalManifest(const std::string& manifestUrl)
         cachedManifest = new (std::nothrow) Manifest();
         if (cachedManifest)
         {
+            if (_packageUrl != "") {
+                cachedManifest->setPackageUrl(_packageUrl);
+                _localManifest->setManifestFileUrl(_packageUrl + _manifestUrl);
+                std::string _verManifestUrl = _manifestUrl;
+                findAndReplaceAll(_verManifestUrl, "project", "version");
+                _localManifest->setVersionFileUrl(_packageUrl + _verManifestUrl);
+            }
             cachedManifest->parseFile(_cacheManifestPath);
             if (!cachedManifest->isLoaded())
             {
@@ -358,6 +379,15 @@ bool AssetsManagerEx::loadLocalManifest(const std::string& manifestUrl)
     }
     // Load local manifest in app package
     _localManifest->parseFile(_manifestUrl);
+    
+    if (_packageUrl != "") {
+        _localManifest->setPackageUrl(_packageUrl);
+        _localManifest->setManifestFileUrl(_packageUrl + _manifestUrl);
+        std::string _verManifestUrl = _manifestUrl;
+        findAndReplaceAll(_verManifestUrl, "project", "version");
+        _localManifest->setVersionFileUrl(_packageUrl + _verManifestUrl);
+    }
+    
     if (cachedManifest)
     {
         // Restore search paths
@@ -380,6 +410,13 @@ bool AssetsManagerEx::loadLocalManifest(const std::string& manifestUrl)
             {
                 CC_SAFE_RELEASE(_localManifest);
                 _localManifest = cachedManifest;
+                if (_packageUrl != "") {
+                    _localManifest->setPackageUrl(_packageUrl);
+                    _localManifest->setManifestFileUrl(_packageUrl + _manifestUrl);
+                    std::string _verManifestUrl = _manifestUrl;
+                    findAndReplaceAll(_verManifestUrl, "project", "version");
+                    _localManifest->setVersionFileUrl(_packageUrl + _verManifestUrl);
+                }
             }
         }
         prepareLocalManifest();
@@ -399,6 +436,7 @@ bool AssetsManagerEx::loadLocalManifest(const std::string& manifestUrl)
 
 bool AssetsManagerEx::loadRemoteManifest(Manifest* remoteManifest)
 {
+    CCLOG("AssetsManagerEx : loadRemoteManifest");
     if (!_inited || _updateState > State::UNCHECKED)
     {
         return false;
@@ -413,6 +451,14 @@ bool AssetsManagerEx::loadRemoteManifest(Manifest* remoteManifest)
         CC_SAFE_RELEASE(_remoteManifest);
     }
     _remoteManifest = remoteManifest;
+    if (_packageUrl != "") {
+        _remoteManifest->setPackageUrl(_packageUrl);
+        _localManifest->setManifestFileUrl(_packageUrl + _manifestUrl);
+        std::string _verManifestUrl = _manifestUrl;
+        findAndReplaceAll(_verManifestUrl, "project", "version");
+        _localManifest->setVersionFileUrl(_packageUrl + _verManifestUrl);
+    }
+    
     _remoteManifest->retain();
     // Compare manifest version and set state
     if (_localManifest->versionGreaterOrEquals(_remoteManifest, _versionCompareHandle))
@@ -704,13 +750,23 @@ AssetsManagerEx::State AssetsManagerEx::getState() const
     return _updateState;
 }
 
+void AssetsManagerEx::setPackageUrl(const std::string &packageUrl){
+    _packageUrl = packageUrl;
+    
+}
+
+const std::string& AssetsManagerEx::getPackageUrl(){
+    return _packageUrl;
+}
+
 void AssetsManagerEx::downloadVersion()
 {
+    CCLOG("AssetsManagerEx : downloadVersion");
     if (_updateState > State::PREDOWNLOAD_VERSION)
         return;
 
     std::string versionUrl = _localManifest->getVersionFileUrl();
-
+    CCLOG("AssetsManagerEx : downloadVersion versionUrl: [%s]", versionUrl.c_str());
     if (versionUrl.size() > 0)
     {
         _updateState = State::DOWNLOADING_VERSION;
@@ -722,12 +778,13 @@ void AssetsManagerEx::downloadVersion()
     {
         CCLOG("AssetsManagerEx : No version file found, step skipped\n");
         _updateState = State::PREDOWNLOAD_MANIFEST;
-        downloadManifest();
+        downloadProject();
     }
 }
 
 void AssetsManagerEx::parseVersion()
 {
+    CCLOG("AssetsManagerEx : parseVersion\n");
     if (_updateState != State::VERSION_LOADED)
         return;
 
@@ -737,36 +794,39 @@ void AssetsManagerEx::parseVersion()
     {
         CCLOG("AssetsManagerEx : Fail to parse version file, step skipped\n");
         _updateState = State::PREDOWNLOAD_MANIFEST;
-        downloadManifest();
+        downloadProject();
     }
     else
     {
         if (_localManifest->versionGreaterOrEquals(_remoteManifest, _versionCompareHandle))
         {
+            CCLOG("AssetsManagerEx : State::UP_TO_DATE\n");
             _updateState = State::UP_TO_DATE;
             _fileUtils->removeDirectory(_tempStoragePath);
             dispatchUpdateEvent(EventAssetsManagerEx::EventCode::ALREADY_UP_TO_DATE);
         }
         else
         {
+            CCLOG("AssetsManagerEx : State::PREDOWNLOAD_MANIFEST\n");
             _updateState = State::PREDOWNLOAD_MANIFEST;
-            downloadManifest();
+            downloadProject();
         }
     }
 }
 
-void AssetsManagerEx::downloadManifest()
+void AssetsManagerEx::downloadProject()
 {
+    CCLOG("AssetsManagerEx : downloadProject");
     if (_updateState != State::PREDOWNLOAD_MANIFEST)
         return;
 
     std::string manifestUrl = _localManifest->getManifestFileUrl();
-
+    CCLOG("AssetsManagerEx : downloadProject manifestUrl: [%s]", manifestUrl.c_str());
     if (manifestUrl.size() > 0)
     {
         _updateState = State::DOWNLOADING_MANIFEST;
         // Download version file asynchronously
-        _downloader->createDownloadFileTask(manifestUrl, _tempManifestPath, MANIFEST_ID);
+        _downloader->createDownloadFileTask(manifestUrl, _tempManifestPath, PROJECT_ID);
     }
     // No manifest file found
     else
@@ -777,8 +837,9 @@ void AssetsManagerEx::downloadManifest()
     }
 }
 
-void AssetsManagerEx::parseManifest()
+void AssetsManagerEx::parseProject()
 {
+    CCLOG("AssetsManagerEx : parseProject");
     if (_updateState != State::MANIFEST_LOADED)
         return;
 
@@ -786,7 +847,7 @@ void AssetsManagerEx::parseManifest()
 
     if (!_remoteManifest->isLoaded())
     {
-        CCLOG("AssetsManagerEx : Error parsing manifest file, %s", _tempManifestPath.c_str());
+        CCLOG("AssetsManagerEx : Error parsing project file, %s", _tempManifestPath.c_str());
         dispatchUpdateEvent(EventAssetsManagerEx::EventCode::ERROR_PARSE_MANIFEST);
         _updateState = State::UNCHECKED;
     }
@@ -865,6 +926,14 @@ void AssetsManagerEx::prepareUpdate()
         // Temporary manifest will be used to register the download states of each asset,
         // in this case, it equals remote manifest.
         _tempManifest = _remoteManifest;
+        if (_packageUrl != "") {
+            _tempManifest->setPackageUrl(_packageUrl);
+            _localManifest->setManifestFileUrl(_packageUrl + _manifestUrl);
+            std::string _verManifestUrl = _manifestUrl;
+            findAndReplaceAll(_verManifestUrl, "project", "version");
+            _localManifest->setVersionFileUrl(_packageUrl + _verManifestUrl);
+        }
+        
 
         // Check difference between local manifest and remote manifest
         std::unordered_map<std::string, Manifest::AssetDiff> diff_map = _localManifest->genDiff(_remoteManifest);
@@ -995,6 +1064,14 @@ void AssetsManagerEx::updateSucceed()
     // 4. swap the localManifest
     CC_SAFE_RELEASE(_localManifest);
     _localManifest = _remoteManifest;
+    if (_packageUrl != "") {
+        _localManifest->setPackageUrl(_packageUrl);
+        _localManifest->setManifestFileUrl(_packageUrl + _manifestUrl);
+        std::string _verManifestUrl = _manifestUrl;
+        findAndReplaceAll(_verManifestUrl, "project", "version");
+        _localManifest->setVersionFileUrl(_packageUrl + _verManifestUrl);
+    }
+    
     _localManifest->setManifestRoot(_storagePath);
     _remoteManifest = nullptr;
     // 5. make local manifest take effect
@@ -1007,8 +1084,9 @@ void AssetsManagerEx::updateSucceed()
     _fileUtils->removeDirectory(_tempStoragePath);
 }
 
-void AssetsManagerEx::checkUpdate()
+void AssetsManagerEx::checkUpdate(const std::string& remoteVersion)
 {
+    CCLOG("AssetsManagerEx : checkUpdate %s", remoteVersion.c_str());
     if (_updateEntry != UpdateEntry::NONE)
     {
         CCLOGERROR("AssetsManagerEx::checkUpdate, updateEntry isn't NONE");
@@ -1016,19 +1094,37 @@ void AssetsManagerEx::checkUpdate()
     }
 
     if (!_inited){
-        CCLOG("AssetsManagerEx : Manifests uninited.\n");
+        CCLOG("AssetsManagerEx : checkUpdate Manifests uninited.\n");
         dispatchUpdateEvent(EventAssetsManagerEx::EventCode::ERROR_NO_LOCAL_MANIFEST);
         return;
     }
     if (!_localManifest->isLoaded())
     {
-        CCLOG("AssetsManagerEx : No local manifest file found error.\n");
+        CCLOG("AssetsManagerEx : checkUpdate No local manifest file found error.\n");
         dispatchUpdateEvent(EventAssetsManagerEx::EventCode::ERROR_NO_LOCAL_MANIFEST);
         return;
     }
-
+    
     _updateEntry = UpdateEntry::CHECK_UPDATE;
-
+    if (!_remoteManifest)
+    {
+        return;
+    }
+    _remoteManifest->setVersion(remoteVersion);
+    if (_localManifest->versionGreaterOrEquals(_remoteManifest, _versionCompareHandle))
+    {
+        CCLOG("AssetsManagerEx : checkUpdate State::UP_TO_DATE\n");
+        _updateState = State::UP_TO_DATE;
+        _fileUtils->removeDirectory(_tempStoragePath);
+        dispatchUpdateEvent(EventAssetsManagerEx::EventCode::ALREADY_UP_TO_DATE);
+    }
+    else
+    {
+        CCLOG("AssetsManagerEx : checkUpdate State::PREDOWNLOAD_MANIFEST\n");
+        _updateState = State::PREDOWNLOAD_MANIFEST;
+        downloadProject();
+    }
+    
     switch (_updateState) {
         case State::FAIL_TO_UPDATE:
             _updateState = State::UNCHECKED;
@@ -1055,6 +1151,7 @@ void AssetsManagerEx::checkUpdate()
 
 void AssetsManagerEx::update()
 {
+    CCLOG("AssetsManagerEx : update.\n");
     if (_updateEntry != UpdateEntry::NONE)
     {
         CCLOGERROR("AssetsManagerEx::update, updateEntry isn't NONE");
@@ -1092,12 +1189,12 @@ void AssetsManagerEx::update()
             break;
         case State::PREDOWNLOAD_MANIFEST:
         {
-            downloadManifest();
+            downloadProject();
         }
             break;
         case State::MANIFEST_LOADED:
         {
-            parseManifest();
+            parseProject();
         }
             break;
         case State::FAIL_TO_UPDATE:
@@ -1108,7 +1205,7 @@ void AssetsManagerEx::update()
             if (!_remoteManifest->isLoaded())
             {
                 _updateState = State::PREDOWNLOAD_MANIFEST;
-                downloadManifest();
+                downloadProject();
             }
             else if (_updateEntry == UpdateEntry::DO_UPDATE)
             {
@@ -1224,9 +1321,9 @@ void AssetsManagerEx::onError(const network::DownloadTask& task,
     {
         CCLOG("AssetsManagerEx : Fail to download version file, step skipped\n");
         _updateState = State::PREDOWNLOAD_MANIFEST;
-        downloadManifest();
+        downloadProject();
     }
-    else if (task.identifier == MANIFEST_ID)
+    else if (task.identifier == PROJECT_ID)
     {
         dispatchUpdateEvent(EventAssetsManagerEx::EventCode::ERROR_DOWNLOAD_MANIFEST, task.identifier, errorStr, errorCode, errorCodeInternal);
         _updateState = State::FAIL_TO_UPDATE;
@@ -1242,7 +1339,7 @@ void AssetsManagerEx::onError(const network::DownloadTask& task,
 
 void AssetsManagerEx::onProgress(double total, double downloaded, const std::string& /*url*/, const std::string &customId)
 {
-    if (customId == VERSION_ID || customId == MANIFEST_ID)
+    if (customId == VERSION_ID || customId == PROJECT_ID)
     {
         _percent = 100 * downloaded / total;
         // Notify progression event
@@ -1303,10 +1400,10 @@ void AssetsManagerEx::onSuccess(const std::string &/*srcUrl*/, const std::string
         _updateState = State::VERSION_LOADED;
         parseVersion();
     }
-    else if (customId == MANIFEST_ID)
+    else if (customId == PROJECT_ID)
     {
         _updateState = State::MANIFEST_LOADED;
-        parseManifest();
+        parseProject();
     }
     else
     {
@@ -1376,12 +1473,13 @@ void AssetsManagerEx::batchDownload()
 
 void AssetsManagerEx::queueDowload()
 {
+    CCLOG("AssetsManagerEx : queueDowload [%d] - [%d]", _maxConcurrentTask, _currConcurrentTask);
     if (_totalWaitToDownload == 0 || (_canceled && _currConcurrentTask == 0))
     {
         this->onDownloadUnitsFinished();
         return;
     }
-
+    
     while (_currConcurrentTask < _maxConcurrentTask && _queue.size() > 0 && !_canceled)
     {
         std::string key = _queue.back();
@@ -1390,6 +1488,14 @@ void AssetsManagerEx::queueDowload()
         _currConcurrentTask++;
         DownloadUnit& unit = _downloadUnits[key];
         _fileUtils->createDirectory(basename(unit.storagePath));
+        
+        std::string tmpFilePath = unit.storagePath + ".tmp";
+        if (_fileUtils->isFileExist(tmpFilePath)) {
+            _fileUtils->removeFile(tmpFilePath);
+            cocos2d::log("AssetsManagerEx  download ==> remove tmp file before download: %s", tmpFilePath.c_str());
+        } else {
+        }
+        
         auto downloadTask = _downloader->createDownloadFileTask(unit.srcUrl, unit.storagePath, unit.customId);
         _downloadingTask.emplace(unit.customId, downloadTask);
         _tempManifest->setAssetDownloadState(key, Manifest::DownloadState::DOWNLOADING);

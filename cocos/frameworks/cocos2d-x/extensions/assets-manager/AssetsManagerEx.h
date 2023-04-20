@@ -36,7 +36,7 @@
 
 #include "CCEventAssetsManagerEx.h"
 
-#include "Manifest.h"
+#include "Manifest.hpp"
 #include "extensions/ExtensionMacros.h"
 #include "extensions/ExtensionExport.h"
 #include "json/document-wrapper.h"
@@ -71,7 +71,7 @@ public:
     };
     
     const static std::string VERSION_ID;
-    const static std::string MANIFEST_ID;
+    const static std::string PROJECT_ID;
     
     typedef std::function<int(const std::string& versionA, const std::string& versionB)> VersionCompareHandle;
     typedef std::function<bool(const std::string& path, Manifest::Asset asset)> VerifyCallback;
@@ -83,17 +83,23 @@ public:
      @warning   The cached manifest in your storage path have higher priority and will be searched first,
                 only if it doesn't exist, AssetsManagerEx will use the given manifestUrl.
      */
-    static AssetsManagerEx* create(const std::string &manifestUrl, const std::string &storagePath);
+    static AssetsManagerEx* create(
+                                   const std::string &manifestUrl,
+                                   const std::string &storagePath,
+                                   const std::string &packageUrl = "");
     
     /** @brief  Check out if there is a new version of manifest.
      *          You may use this method before updating, then let user determine whether
      *          he wants to update resources.
      */
-    void checkUpdate();
+    void checkUpdate(const std::string& remoteVersion);
     
     /** @brief Prepare the update process, this will cleanup download process flags, fill up download units with temporary manifest or remote manifest
      */
     void prepareUpdate();
+    
+    void setPackageUrl(const std::string& packageUrl);
+    const std::string& getPackageUrl();
     
     /** @brief Update with the current local manifest.
      */
@@ -199,9 +205,10 @@ public:
     
 CC_CONSTRUCTOR_ACCESS:
     
-    AssetsManagerEx(const std::string& manifestUrl, const std::string& storagePath);
-    
-    AssetsManagerEx(const std::string& manifestUrl, const std::string& storagePath, const VersionCompareHandle& handle);
+    AssetsManagerEx(
+                    const std::string& manifestUrl,
+                    const std::string& storagePath,
+                    const std::string& packageUrl = "");
     
     virtual ~AssetsManagerEx();
     
@@ -225,8 +232,8 @@ protected:
     
     void downloadVersion();
     void parseVersion();
-    void downloadManifest();
-    void parseManifest();
+    void downloadProject();
+    void parseProject();
     void startUpdate();
     void updateSucceed();
     bool decompress(const std::string &filename);
@@ -407,6 +414,8 @@ private:
     bool _canceled;
     //! Downloading task container
     std::unordered_map<std::string, std::shared_ptr<const network::DownloadTask>> _downloadingTask;
+    
+    std::string _packageUrl;   //HotUpdate资源根目录
 };
 
 NS_CC_EXT_END
