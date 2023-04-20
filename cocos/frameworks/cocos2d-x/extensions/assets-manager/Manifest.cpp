@@ -24,9 +24,10 @@
  THE SOFTWARE.
  ****************************************************************************/
 
-#include "Manifest.hpp"
+#include "Manifest.h"
 #include "json/prettywriter.h"
 #include "json/stringbuffer.h"
+
 #include <fstream>
 #include <stdio.h>
 
@@ -40,24 +41,19 @@
 #define KEY_ASSETS              "assets"
 #define KEY_COMPRESSED_FILES    "compressedFiles"
 #define KEY_SEARCH_PATHS        "searchPaths"
-#define KEY_HTTP_HOSTS          "gameUrl"
-#define KEY_TCP_HOSTS           "startUrl"
 
 #define KEY_PATH                "path"
-#define KEY_MD5                 "m"//md5
+#define KEY_MD5                 "md5"
 #define KEY_GROUP               "group"
-#define KEY_COMPRESSED          "c"//compressed
-#define KEY_SIZE                "s"//size
-#define KEY_GAME_ID             "b"//bundle name
+#define KEY_COMPRESSED          "compressed"
+#define KEY_SIZE                "size"
 #define KEY_COMPRESSED_FILE     "compressedFile"
 #define KEY_DOWNLOAD_STATE      "downloadState"
 
 NS_CC_EXT_BEGIN
 
-
 static int cmpVersion(const std::string& v1, const std::string& v2)
 {
-    CCLOG("[Manifest] cmpVersion %s -> %s", v1.c_str(), v2.c_str());
     int i;
     int oct_v1[4] = {0}, oct_v2[4] = {0};
     int filled1 = std::sscanf(v1.c_str(), "%d.%d.%d.%d", &oct_v1[0], &oct_v1[1], &oct_v1[2], &oct_v1[3]);
@@ -77,8 +73,7 @@ static int cmpVersion(const std::string& v1, const std::string& v2)
     return 0;
 }
 
-Manifest::Manifest(const std::string& manifestUrl/* = ""*/,
-                   const std::string& strPackageUrl/* = ""*/)
+Manifest::Manifest(const std::string& manifestUrl/* = ""*/)
 : _versionLoaded(false)
 , _loaded(false)
 , _updating(false)
@@ -87,18 +82,14 @@ Manifest::Manifest(const std::string& manifestUrl/* = ""*/,
 , _remoteVersionUrl("")
 , _version("")
 , _engineVer("")
-, _packageUrl(strPackageUrl)
-, _createManifest(false)
 {
+    // Init variables
     _fileUtils = FileUtils::getInstance();
-    initLocalGameList();
     if (manifestUrl.size() > 0)
         parseFile(manifestUrl);
 }
 
-Manifest::Manifest(const std::string& content,
-                   const std::string& manifestRoot,
-                   const std::string& strPackageUrl/* = ""*/)
+Manifest::Manifest(const std::string& content, const std::string& manifestRoot)
 : _versionLoaded(false)
 , _loaded(false)
 , _updating(false)
@@ -107,50 +98,11 @@ Manifest::Manifest(const std::string& content,
 , _remoteVersionUrl("")
 , _version("")
 , _engineVer("")
-, _packageUrl(strPackageUrl)
-, _createManifest(false)
 {
+    // Init variables
     _fileUtils = FileUtils::getInstance();
-    initLocalGameList();
     if (content.size() > 0)
         parseJSONString(content, manifestRoot);
-}
-
-void Manifest::initLocalGameList() {
-    std::string fileName = "local_game_list.json";
-    std::string content;
-    if (_fileUtils->isFileExist(fileName))
-    {
-        content = _fileUtils->getStringFromFile(fileName);
-        
-        if (content.size() == 0)
-        {
-            CCLOG("Fail to retrieve local file content: %s\n", fileName.c_str());
-        }
-        else
-        {
-            if (content.size() == 0)
-            {
-                CCLOG("Fail to parse empty json content.");
-            }
-            else
-            {
-                rapidjson::Document jsonDoc;
-                jsonDoc.Parse<0>(content.c_str());
-                if (jsonDoc.HasParseError()) {
-                    CCLOG("File parse error : local_game_list.json");
-                } else {
-                    int size = jsonDoc.Size();
-                    for (int i=0; i<size; i++) {
-                        if (jsonDoc[i].IsString()) {
-                            _localGameList.push_back(jsonDoc[i].GetString());
-                        }
-                    }
-                }
-            }
-            
-        }
-    }
 }
 
 void Manifest::loadJson(const std::string& url)
@@ -159,6 +111,7 @@ void Manifest::loadJson(const std::string& url)
     std::string content;
     if (_fileUtils->isFileExist(url))
     {
+        // Load file content
         content = _fileUtils->getStringFromFile(url);
         
         if (content.size() == 0)
@@ -180,7 +133,9 @@ void Manifest::loadJsonFromString(const std::string& content)
     }
     else
     {
+        // Parse file with rapid json
         _json.Parse<0>(content.c_str());
+        // Print error
         if (_json.HasParseError()) {
             size_t offset = _json.GetErrorOffset();
             if (offset > 0)
@@ -204,9 +159,10 @@ void Manifest::parseVersion(const std::string& versionUrl)
 void Manifest::parseFile(const std::string& manifestUrl)
 {
     loadJson(manifestUrl);
-    
+	
     if (!_json.HasParseError() && _json.IsObject())
     {
+        // Register the local manifest root
         size_t found = manifestUrl.find_last_of("/\\");
         if (found != std::string::npos)
         {
@@ -222,18 +178,16 @@ void Manifest::parseJSONString(const std::string& content, const std::string& ma
     
     if (!_json.HasParseError() && _json.IsObject())
     {
+        // Register the local manifest root
         _manifestRoot = manifestRoot;
         loadManifest(_json);
     }
 }
 
-
 bool Manifest::isVersionLoaded() const
 {
-    
     return _versionLoaded;
 }
-
 bool Manifest::isLoaded() const
 {
     return _loaded;
@@ -257,21 +211,27 @@ void Manifest::setUpdating(bool updating)
 
 bool Manifest::versionEquals(const Manifest *b) const
 {
+    // Check manifest version
     if (_version != b->getVersion())
     {
         return false;
     }
+    // Check group versions
     else
     {
         std::vector<std::string> bGroups = b->getGroups();
         std::unordered_map<std::string, std::string> bGroupVer = b->getGroupVerions();
+        // Check group size
         if (bGroups.size() != _groups.size())
             return false;
         
+        // Check groups version
         for (unsigned int i = 0; i < _groups.size(); ++i) {
             std::string gid =_groups[i];
+            // Check group name
             if (gid != bGroups[i])
                 return false;
+            // Check group version
             if (_groupVer.at(gid) != bGroupVer.at(gid))
                 return false;
         }
@@ -326,30 +286,23 @@ std::unordered_map<std::string, Manifest::AssetDiff> Manifest::genDiff(const Man
         key = it->first;
         valueA = it->second;
         
+        // Deleted
         valueIt = bAssets.find(key);
         if (valueIt == bAssets.cend()) {
             AssetDiff diff;
             diff.asset = valueA;
             diff.type = DiffType::DELETED;
             diff_map.emplace(key, diff);
-            cocos2d::log("delete path: %s", valueA.path.c_str());
             continue;
         }
         
+        // Modified
         valueB = valueIt->second;
         if (valueA.md5 != valueB.md5) {
             AssetDiff diff;
             diff.asset = valueB;
             diff.type = DiffType::MODIFIED;
-            std::string game_id = valueA.game_id;
-            long nRet = std::count(_localGameList.begin(), _localGameList.end(), game_id);
-            if ("internal" == game_id || nRet > 0) {
-                diff_map.emplace(key, diff);
-                cocos2d::log("modify res: %s", valueA.path.c_str());
-            } else {
-                cocos2d::log("res game id: %s, no need to update.", game_id.c_str());
-            }
-            
+            diff_map.emplace(key, diff);
         }
     }
     
@@ -358,19 +311,13 @@ std::unordered_map<std::string, Manifest::AssetDiff> Manifest::genDiff(const Man
         key = it->first;
         valueB = it->second;
         
+        // Added
         valueIt = _assets.find(key);
         if (valueIt == _assets.cend()) {
             AssetDiff diff;
             diff.asset = valueB;
             diff.type = DiffType::ADDED;
-            std::string game_id = valueB.game_id;
-            long nRet = std::count(_localGameList.begin(), _localGameList.end(), game_id);
-            if ("internal" == game_id || nRet > 0) {
-                diff_map.emplace(key, diff);
-                cocos2d::log("added res: %s", valueB.path.c_str());
-            } else {
-                cocos2d::log("res game id: %s, no need to update.", game_id.c_str());
-            }
+            diff_map.emplace(key, diff);
         }
     }
     
@@ -390,26 +337,6 @@ void Manifest::genResumeAssetsList(DownloadUnits *units) const
             unit.srcUrl = _packageUrl + asset.path;
             unit.storagePath = _manifestRoot + asset.path;
             unit.size = asset.size;
-            unit.game_id = asset.game_id;
-            units->emplace(unit.customId, unit);
-        }
-    }
-}
-
-void Manifest::genResumeAssetsList(DownloadUnits *units, const std::string remoteUrl) const
-{
-    for (auto it = _assets.begin(); it != _assets.end(); ++it)
-    {
-        Asset asset = it->second;
-        
-        if (asset.downloadState != DownloadState::SUCCESSED && asset.downloadState != DownloadState::UNMARKED)
-        {
-            DownloadUnit unit;
-            unit.customId = it->first;
-            unit.srcUrl = remoteUrl + asset.path;
-            unit.storagePath = _manifestRoot + asset.path;
-            unit.size = asset.size;
-            unit.game_id = asset.game_id;
             units->emplace(unit.customId, unit);
         }
     }
@@ -431,17 +358,31 @@ std::vector<std::string> Manifest::getSearchPaths() const
     return searchPaths;
 }
 
-std::vector<std::string> Manifest::getHttpHost() const{
-    return _httpHost;
-}
-
-std::vector<std::string> Manifest::getWsHost() const{
-    return _wsHost;
-}
-
 void Manifest::prependSearchPaths()
 {
+    std::vector<std::string> searchPaths = FileUtils::getInstance()->getSearchPaths();
+    std::vector<std::string>::iterator iter = searchPaths.begin();
+    bool needChangeSearchPaths = false;
+    if (std::find(searchPaths.begin(), searchPaths.end(), _manifestRoot) == searchPaths.end())
+    {
+        searchPaths.insert(iter, _manifestRoot);
+        needChangeSearchPaths = true;
+    }
     
+    for (int i = (int)_searchPaths.size()-1; i >= 0; i--)
+    {
+        std::string path = _searchPaths[i];
+        if (path.size() > 0 && path[path.size() - 1] != '/')
+            path.append("/");
+        path = _manifestRoot + path;
+        iter = searchPaths.begin();
+        searchPaths.insert(iter, path);
+        needChangeSearchPaths = true;
+    }
+    if (needChangeSearchPaths)
+    {
+        FileUtils::getInstance()->setSearchPaths(searchPaths);
+    }
 }
 
 
@@ -450,21 +391,9 @@ const std::string& Manifest::getPackageUrl() const
     return _packageUrl;
 }
 
-void Manifest::setPackageUrl(const std::string &packageUrl){
-    _packageUrl = packageUrl;
-    if (_packageUrl.size() > 0 && _packageUrl[_packageUrl.size() - 1] != '/')
-    {
-        _packageUrl.append("/");
-    }
-}
-
 const std::string& Manifest::getManifestFileUrl() const
 {
     return _remoteManifestUrl;
-}
-
-void Manifest::setManifestFileUrl(const std::string &manifestUrl){
-    _remoteManifestUrl = manifestUrl;
 }
 
 const std::string& Manifest::getVersionFileUrl() const
@@ -472,17 +401,9 @@ const std::string& Manifest::getVersionFileUrl() const
     return _remoteVersionUrl;
 }
 
-void Manifest::setVersionFileUrl(const std::string &versionUrl){
-    _remoteVersionUrl = versionUrl;
-}
-
 const std::string& Manifest::getVersion() const
 {
     return _version;
-}
-
-void Manifest::setVersion(const std::string &version){
-    _version = version;
 }
 
 const std::vector<std::string>& Manifest::getGroups() const
@@ -512,6 +433,7 @@ void Manifest::setAssetDownloadState(const std::string &key, const Manifest::Dow
     {
         valueIt->second.downloadState = state;
         
+        // Update json object
         if(_json.IsObject())
         {
             if ( _json.HasMember(KEY_ASSETS) )
@@ -564,7 +486,7 @@ Manifest::Asset Manifest::parseAsset(const std::string &path, const rapidjson::V
 {
     Asset asset;
     asset.path = path;
-    
+	
     if ( json.HasMember(KEY_MD5) && json[KEY_MD5].IsString() )
     {
         asset.md5 = json[KEY_MD5].GetString();
@@ -588,12 +510,6 @@ Manifest::Asset Manifest::parseAsset(const std::string &path, const rapidjson::V
     }
     else asset.size = 0;
     
-    if ( json.HasMember(KEY_GAME_ID) && json[KEY_GAME_ID].IsString() )
-    {
-        asset.game_id = json[KEY_GAME_ID].GetString();
-    }
-    else asset.game_id = "internal";
-    
     if ( json.HasMember(KEY_DOWNLOAD_STATE) && json[KEY_DOWNLOAD_STATE].IsInt() )
     {
         asset.downloadState = (json[KEY_DOWNLOAD_STATE].GetInt());
@@ -605,29 +521,25 @@ Manifest::Asset Manifest::parseAsset(const std::string &path, const rapidjson::V
 
 void Manifest::loadVersion(const rapidjson::Document &json)
 {
+    // Retrieve remote manifest url
     if ( json.HasMember(KEY_MANIFEST_URL) && json[KEY_MANIFEST_URL].IsString() )
     {
-        if (_packageUrl == "") {
-            _remoteManifestUrl = json[KEY_MANIFEST_URL].GetString();
-        }else{
-            _remoteManifestUrl = _packageUrl + "manifest.json";
-        }
+        _remoteManifestUrl = json[KEY_MANIFEST_URL].GetString();
     }
     
+    // Retrieve remote version url
     if ( json.HasMember(KEY_VERSION_URL) && json[KEY_VERSION_URL].IsString() )
     {
-        if (_packageUrl == "") {
-            _remoteVersionUrl = json[KEY_VERSION_URL].GetString();
-        }else{
-            _remoteManifestUrl = _packageUrl + "manifest.json";
-        }
+        _remoteVersionUrl = json[KEY_VERSION_URL].GetString();
     }
     
+    // Retrieve local version
     if ( json.HasMember(KEY_VERSION) && json[KEY_VERSION].IsString() )
     {
         _version = json[KEY_VERSION].GetString();
     }
     
+    // Retrieve local group version
     if ( json.HasMember(KEY_GROUP_VERSIONS) )
     {
         const rapidjson::Value& groupVers = json[KEY_GROUP_VERSIONS];
@@ -647,11 +559,13 @@ void Manifest::loadVersion(const rapidjson::Document &json)
         }
     }
     
+    // Retrieve local engine version
     if ( json.HasMember(KEY_ENGINE_VERSION) && json[KEY_ENGINE_VERSION].IsString() )
     {
         _engineVer = json[KEY_ENGINE_VERSION].GetString();
     }
     
+    // Retrieve updating flag
     if ( json.HasMember(KEY_UPDATING) && json[KEY_UPDATING].IsBool() )
     {
         _updating = json[KEY_UPDATING].GetBool();
@@ -664,17 +578,18 @@ void Manifest::loadManifest(const rapidjson::Document &json)
 {
     loadVersion(json);
     
+    // Retrieve package url
     if ( json.HasMember(KEY_PACKAGE_URL) && json[KEY_PACKAGE_URL].IsString() )
     {
-        if (_packageUrl == "") {
-            _packageUrl = json[KEY_PACKAGE_URL].GetString();
-        }
+        _packageUrl = json[KEY_PACKAGE_URL].GetString();
+        // Append automatically "/"
         if (_packageUrl.size() > 0 && _packageUrl[_packageUrl.size() - 1] != '/')
         {
             _packageUrl.append("/");
         }
     }
     
+    // Retrieve all assets
     if ( json.HasMember(KEY_ASSETS) )
     {
         const rapidjson::Value& assets = json[KEY_ASSETS];
@@ -689,6 +604,7 @@ void Manifest::loadManifest(const rapidjson::Document &json)
         }
     }
     
+    // Retrieve all search paths
     if ( json.HasMember(KEY_SEARCH_PATHS) )
     {
         const rapidjson::Value& paths = json[KEY_SEARCH_PATHS];
@@ -703,42 +619,19 @@ void Manifest::loadManifest(const rapidjson::Document &json)
         }
     }
     
-    if ( json.HasMember(KEY_HTTP_HOSTS)){
-        const rapidjson::Value& hosts = json[KEY_HTTP_HOSTS];
-        if (hosts.IsArray()) {
-            for (rapidjson::SizeType i = 0; i < hosts.Size(); ++i) {
-                if (hosts[i].IsString()) {
-                    _httpHost.push_back(hosts[i].GetString());
-                }
-            }
-        }
-    }
-    
-    if ( json.HasMember(KEY_TCP_HOSTS)) {
-        const rapidjson::Value& hosts = json[KEY_TCP_HOSTS];
-        if (hosts.IsArray()) {
-            for (rapidjson::SizeType i = 0; i < hosts.Size(); ++i) {
-                if (hosts[i].IsString()) {
-                    _wsHost.push_back(hosts[i].GetString());
-                }
-            }
-        }
-    }
-    
     _loaded = true;
 }
+
 void Manifest::saveToFile(const std::string &filepath)
-{
-    if (_createManifest) {
-    }
-    saveToFileTest(filepath);
-}
-void Manifest::saveToFileTest(const std::string &filepath)
 {
     rapidjson::StringBuffer buffer;
     rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
     _json.Accept(writer);
-    FileUtils::getInstance()->writeStringToFile(buffer.GetString(), filepath);
     
+    std::ofstream output(FileUtils::getInstance()->getSuitableFOpen(filepath), std::ofstream::out);
+
+    if(!output.bad())
+        output << buffer.GetString() << std::endl;
 }
+
 NS_CC_EXT_END

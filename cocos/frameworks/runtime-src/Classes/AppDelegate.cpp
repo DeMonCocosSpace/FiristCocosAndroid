@@ -47,7 +47,7 @@ bool AppDelegate::applicationDidFinishLaunching()
 {
     se::ScriptEngine* se = se::ScriptEngine::getInstance();
 
-    jsb_set_xxtea_key("e6xax-b2d7-4d3");
+    jsb_set_xxtea_key("e6dc3074-b277-42");
     jsb_init_file_operation_delegate();
 
 #if defined(COCOS2D_DEBUG) && (COCOS2D_DEBUG > 0)

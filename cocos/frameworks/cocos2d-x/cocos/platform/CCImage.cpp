@@ -44,6 +44,8 @@ THE SOFTWARE.
 
 extern "C"
 {
+    // To resolve link error when building 32bits with Xcode 6.
+    // More information please refer to the discussion in https://github.com/cocos2d/cocos2d-x/pull/6986
 #if defined (__unix) || (CC_TARGET_PLATFORM == CC_PLATFORM_IOS)
 #ifndef __ENABLE_COMPATIBILITY_WITH_UNIX_2003__
 #define __ENABLE_COMPATIBILITY_WITH_UNIX_2003__
@@ -103,6 +105,8 @@ extern "C"
 
 NS_CC_BEGIN
 
+//////////////////////////////////////////////////////////////////////////
+//struct and data for pvr structure
 
 namespace
 {
@@ -166,7 +170,9 @@ namespace
 #endif
     };
 
+    //CLASS IMPLEMENTATIONS:
 
+    //The PixpelFormat corresponding information
     const Image::PixelFormatInfoMap _pixelFormatInfoTables(TexturePixelFormatInfoTablesValue,
                                                                           TexturePixelFormatInfoTablesValue + sizeof(TexturePixelFormatInfoTablesValue) / sizeof(TexturePixelFormatInfoTablesValue[0]));
 
@@ -179,6 +185,7 @@ namespace
 
     static bool _PVRHaveAlphaPremultiplied = false;
 
+    // Values taken from PVRTexture.h from http://www.imgtec.com
     enum class PVR2TextureFlag
     {
         Mipmap         = (1<<8),        // has mip map levels
@@ -199,6 +206,7 @@ namespace
 
     static const char gPVRTexIdentifier[5] = "PVR!";
 
+    // v2
     enum class PVR2TexturePixelFormat : unsigned char
     {
         RGBA4444 = 0x10,
@@ -215,6 +223,7 @@ namespace
         A8,
     };
 
+    // v3
     enum class PVR3TexturePixelFormat : uint64_t
     {
         PVRTC2BPP_RGB  = 0ULL,
@@ -262,6 +271,7 @@ namespace
     };
 
 
+    // v2
     typedef const std::map<PVR2TexturePixelFormat, Image::PixelFormat> _pixel2_formathash;
 
     static const _pixel2_formathash::value_type v2_pixel_formathash_value[] =
@@ -283,6 +293,7 @@ namespace
     static const int PVR2_MAX_TABLE_ELEMENTS = sizeof(v2_pixel_formathash_value) / sizeof(v2_pixel_formathash_value[0]);
     static const _pixel2_formathash v2_pixel_formathash(v2_pixel_formathash_value, v2_pixel_formathash_value + PVR2_MAX_TABLE_ELEMENTS);
 
+    // v3
     typedef const std::map<PVR3TexturePixelFormat, Image::PixelFormat> _pixel3_formathash;
     static _pixel3_formathash::value_type v3_pixel_formathash_value[] =
     {
@@ -349,8 +360,11 @@ namespace
     } __attribute__((packed)) PVRv3TexHeader;
 #endif
 }
+//pvr structure end
 
+//////////////////////////////////////////////////////////////////////////
 
+//struct and data for s3tc(dds) struct
 namespace
 {
     struct DDColorKey
@@ -441,6 +455,7 @@ namespace
 #pragma pack(pop)
 
 }
+//s3tc struct end
 
 namespace
 {
@@ -490,6 +505,9 @@ Image::PixelFormat getDevicePixelFormat(Image::PixelFormat format)
     }
 }
 
+//////////////////////////////////////////////////////////////////////////
+// Implement Image
+//////////////////////////////////////////////////////////////////////////
 bool Image::PNG_PREMULTIPLIED_ALPHA_ENABLED = false;
 
 Image::Image()
@@ -513,6 +531,8 @@ Image::~Image()
 bool Image::initWithImageFile(const std::string& path)
 {
     bool ret = false;
+    //NOTE: fullPathForFilename isn't threadsafe. we should make sure the parameter is a full path.
+//    _filePath = FileUtils::getInstance()->fullPathForFilename(path);
     _filePath = path;
 
     Data data = FileUtils::getInstance()->getDataFromFile(_filePath);
@@ -525,22 +545,6 @@ bool Image::initWithImageFile(const std::string& path)
     return ret;
 }
 
-ssize_t Image::mydecode(const unsigned char * data, ssize_t dataLen, unsigned char ** outBuffer)
-{
-    if(dataLen<=7 || memcmp(data, "xasdads", 7) != 0)  //是否加密的标记
-    {
-        return dataLen;
-    }
-    ssize_t len = dataLen-7;
-    *outBuffer = (unsigned char*)malloc( len );
-    for(ssize_t i=0;i<len;i++)
-    {
-        (*outBuffer)[i] = data[i+7] ^ 0x33;
-        (*outBuffer)[i] = (*outBuffer)[i] ^ 0x22;
-    }
-    return len;
-}
-
 bool Image::initWithImageData(const unsigned char * data, ssize_t dataLen)
 {
     bool ret = false;
@@ -549,15 +553,10 @@ bool Image::initWithImageData(const unsigned char * data, ssize_t dataLen)
     {
         CC_BREAK_IF(! data || dataLen <= 0);
 
-        unsigned char* decodeData = nullptr;
         unsigned char* unpackedData = nullptr;
         ssize_t unpackedLen = 0;
-        dataLen = mydecode(data, dataLen, &decodeData);
-        if(decodeData)
-        {
-           data = decodeData;
-        }
 
+        //detect and unzip the compress file
         if (ZipUtils::isCCZBuffer(data, dataLen))
         {
             unpackedLen = ZipUtils::inflateCCZBuffer(data, dataLen, &unpackedData);
@@ -602,6 +601,7 @@ bool Image::initWithImageData(const unsigned char * data, ssize_t dataLen)
             break;
         default:
             {
+                // load and detect image format
                 tImageTGA* tgaData = tgaLoadBuffer(unpackedData, unpackedLen);
 
                 if (tgaData != nullptr && tgaData->status == TGA_OK)
@@ -617,10 +617,7 @@ bool Image::initWithImageData(const unsigned char * data, ssize_t dataLen)
                 break;
             }
         }
-        if(decodeData)
-        {
-            free(decodeData);
-        }
+
         if(unpackedData != data)
         {
             free(unpackedData);
@@ -825,6 +822,7 @@ namespace
         /* internal message function can't show error message in some platforms, so we rewrite it here.
          * edit it if has version conflict.
          */
+        //(*cinfo->err->output_message) (cinfo);
         char buffer[JMSG_LENGTH_MAX];
         (*cinfo->err->format_message) (cinfo, buffer);
         CCLOG("jpeg error: %s", buffer);
@@ -876,11 +874,13 @@ bool Image::initWithJpgData(const unsigned char * data, ssize_t dataLen)
 
         /* reading the image header which contains image information */
 #if (JPEG_LIB_VERSION >= 90)
+        // libjpeg 0.9 adds stricter types.
         jpeg_read_header(&cinfo, TRUE);
 #else
         jpeg_read_header(&cinfo, TRUE);
 #endif
 
+        // we only support RGB or grayscale
         if (cinfo.jpeg_color_space == JCS_GRAYSCALE)
         {
             _renderFormat = Image::PixelFormat::I8;
@@ -916,6 +916,7 @@ bool Image::initWithJpgData(const unsigned char * data, ssize_t dataLen)
          * with the decompression object.
          * So it doesn't need to call jpeg_finish_decompress().
          */
+        //jpeg_finish_decompress( &cinfo );
         jpeg_destroy_decompress( &cinfo );
         /* wrap up decompression, destroy objects, free pointers and close open files */
         ret = true;
@@ -933,6 +934,7 @@ bool Image::initWithPngData(const unsigned char * data, ssize_t dataLen)
 #if CC_USE_WIC
     return decodeWithWIC(data, dataLen);
 #elif CC_USE_PNG
+    // length of bytes to check if it is a valid png file
 #define PNGSIGSIZE  8
     bool ret = false;
     png_byte        header[PNGSIGSIZE]   = {0};
@@ -941,14 +943,18 @@ bool Image::initWithPngData(const unsigned char * data, ssize_t dataLen)
 
     do
     {
+        // png header len is 8 bytes
         CC_BREAK_IF(dataLen < PNGSIGSIZE);
 
+        // check the data is png or not
         memcpy(header, data, PNGSIGSIZE);
         CC_BREAK_IF(png_sig_cmp(header, 0, PNGSIGSIZE));
 
+        // init png_struct
         png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, 0, 0, 0);
         CC_BREAK_IF(! png_ptr);
 
+        // init png_info
         info_ptr = png_create_info_struct(png_ptr);
         CC_BREAK_IF(!info_ptr);
 
@@ -956,13 +962,16 @@ bool Image::initWithPngData(const unsigned char * data, ssize_t dataLen)
         CC_BREAK_IF(setjmp(png_jmpbuf(png_ptr)));
 #endif
 
+        // set the read call back function
         tImageSource imageSource;
         imageSource.data    = (unsigned char*)data;
         imageSource.size    = dataLen;
         imageSource.offset  = 0;
         png_set_read_fn(png_ptr, &imageSource, pngReadCallback);
 
+        // read png header info
 
+        // read png file info
         png_read_info(png_ptr, info_ptr);
 
         _width = png_get_image_width(png_ptr, info_ptr);
@@ -970,29 +979,37 @@ bool Image::initWithPngData(const unsigned char * data, ssize_t dataLen)
         png_byte bit_depth = png_get_bit_depth(png_ptr, info_ptr);
         png_uint_32 color_type = png_get_color_type(png_ptr, info_ptr);
 
+        //CCLOG("color type %u", color_type);
 
+        // force palette images to be expanded to 24-bit RGB
+        // it may include alpha channel
         if (color_type == PNG_COLOR_TYPE_PALETTE)
         {
             png_set_palette_to_rgb(png_ptr);
         }
+        // low-bit-depth grayscale images are to be expanded to 8 bits
         if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
         {
             bit_depth = 8;
             png_set_expand_gray_1_2_4_to_8(png_ptr);
         }
+        // expand any tRNS chunk data into a full alpha channel
         if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
         {
             png_set_tRNS_to_alpha(png_ptr);
         }
+        // reduce images with 16-bit samples to 8 bits
         if (bit_depth == 16)
         {
             png_set_strip_16(png_ptr);
         }
 
+        // Expanded earlier for grayscale, now take care of palette and rgb
         if (bit_depth < 8)
         {
             png_set_packing(png_ptr);
         }
+        // update info
         png_read_update_info(png_ptr, info_ptr);
         bit_depth = png_get_bit_depth(png_ptr, info_ptr);
         color_type = png_get_color_type(png_ptr, info_ptr);
@@ -1015,6 +1032,7 @@ bool Image::initWithPngData(const unsigned char * data, ssize_t dataLen)
                 break;
         }
 
+        // read png data
         png_size_t rowbytes;
         png_bytep* row_pointers = (png_bytep*)malloc( sizeof(png_bytep) * _height );
 
@@ -1039,6 +1057,7 @@ bool Image::initWithPngData(const unsigned char * data, ssize_t dataLen)
 
         png_read_end(png_ptr, nullptr);
 
+        // premultiplied alpha for RGBA8888
         if (PNG_PREMULTIPLIED_ALPHA_ENABLED && color_type == PNG_COLOR_TYPE_RGB_ALPHA)
         {
             premultipliedAlpha();
@@ -1187,6 +1206,7 @@ bool Image::initWithTiffData(const unsigned char * data, ssize_t dataLen)
     bool ret = false;
     do
     {
+        // set the read call back function
         tImageSource imageSource;
         imageSource.data    = data;
         imageSource.size    = dataLen;
@@ -1287,8 +1307,10 @@ bool Image::initWithPVRv2Data(const unsigned char * data, ssize_t dataLen)
     int blockSize = 0, widthBlocks = 0, heightBlocks = 0;
     int width = 0, height = 0;
 
+    //Cast first sizeof(PVRTexHeader) bytes of data stream as PVRTexHeader
     const PVRv2TexHeader *header = static_cast<const PVRv2TexHeader *>(static_cast<const void*>(data));
 
+    //Make sure that tag is in correct formatting
     if (memcmp(&header->pvrTag, gPVRTexIdentifier, strlen(gPVRTexIdentifier)) != 0)
     {
         return false;
@@ -1296,6 +1318,7 @@ bool Image::initWithPVRv2Data(const unsigned char * data, ssize_t dataLen)
 
     Configuration *configuration = Configuration::getInstance();
 
+    //can not detect the premultiplied alpha from pvr file, use _PVRHaveAlphaPremultiplied instead.
     _hasPremultipliedAlpha = _PVRHaveAlphaPremultiplied;
 
     unsigned int flags = CC_SWAP_INT32_LITTLE_TO_HOST(header->flags);
@@ -1337,19 +1360,24 @@ bool Image::initWithPVRv2Data(const unsigned char * data, ssize_t dataLen)
     _renderFormat = it->first;
     int bpp = it->second.bpp;
 
+    //Reset num of mipmaps
     _numberOfMipmaps = 0;
 
+    //Get size of mipmap
     _width = width = CC_SWAP_INT32_LITTLE_TO_HOST(header->width);
     _height = height = CC_SWAP_INT32_LITTLE_TO_HOST(header->height);
 
+    //Get ptr to where data starts..
     dataLength = CC_SWAP_INT32_LITTLE_TO_HOST(header->dataLength);
 
     assert(Configuration::getInstance()->supportsPVRTC());
 
+    //Move by size of header
     _dataLen = dataLen - sizeof(PVRv2TexHeader);
     _data = static_cast<unsigned char*>(malloc(_dataLen * sizeof(unsigned char)));
     memcpy(_data, (unsigned char*)data + sizeof(PVRv2TexHeader), _dataLen);
 
+    // Calculate the data size for each texture level and respect the minimum number of blocks
     while (dataOffset < dataLength)
     {
         switch (formatFlags) {
@@ -1376,6 +1404,7 @@ bool Image::initWithPVRv2Data(const unsigned char * data, ssize_t dataLen)
                 break;
         }
 
+        // Clamp to minimum number of blocks
         if (widthBlocks < 2)
         {
             widthBlocks = 2;
@@ -1389,6 +1418,7 @@ bool Image::initWithPVRv2Data(const unsigned char * data, ssize_t dataLen)
         int packetLength = (dataLength - dataOffset);
         packetLength = packetLength > dataSize ? dataSize : packetLength;
 
+        //Make record to the mipmaps array and increment counter
         _mipmaps[_numberOfMipmaps].address = _data + dataOffset;
         _mipmaps[_numberOfMipmaps].offset = dataOffset;
         _mipmaps[_numberOfMipmaps].len = packetLength;
@@ -1396,6 +1426,7 @@ bool Image::initWithPVRv2Data(const unsigned char * data, ssize_t dataLen)
 
         dataOffset += packetLength;
 
+        //Update width and height to the next lower power of two
         width = std::max(width >> 1, 1);
         height = std::max(height >> 1, 1);
     }
@@ -1412,12 +1443,14 @@ bool Image::initWithPVRv3Data(const unsigned char * data, ssize_t dataLen)
 
     const PVRv3TexHeader *header = static_cast<const PVRv3TexHeader *>(static_cast<const void*>(data));
 
+    // validate version
     if (CC_SWAP_INT32_BIG_TO_HOST(header->version) != 0x50565203)
     {
         CCLOG("initWithPVRv3Data: WARNING: pvr file version mismatch");
         return false;
     }
 
+    // parse pixel format
     PVR3TexturePixelFormat pixelFormat = static_cast<PVR3TexturePixelFormat>(header->pixelFormat);
 
     if (!testFormatForPvr3TCSupport(pixelFormat))
@@ -1447,8 +1480,10 @@ bool Image::initWithPVRv3Data(const unsigned char * data, ssize_t dataLen)
     _renderFormat = it->first;
     int bpp = it->second.bpp;
 
+    // flags
     int flags = CC_SWAP_INT32_LITTLE_TO_HOST(header->flags);
 
+    // PVRv3 specifies premultiply alpha in a flag -- should always respect this in PVRv3 files
     if (flags & (unsigned int)PVR3TextureFlag::PremultipliedAlpha)
     {
         _hasPremultipliedAlpha = true;
@@ -1458,6 +1493,7 @@ bool Image::initWithPVRv3Data(const unsigned char * data, ssize_t dataLen)
         _hasPremultipliedAlpha = false;
     }
 
+    // sizing
     int width = CC_SWAP_INT32_LITTLE_TO_HOST(header->width);
     int height = CC_SWAP_INT32_LITTLE_TO_HOST(header->height);
     _width = width;
@@ -1508,6 +1544,7 @@ bool Image::initWithPVRv3Data(const unsigned char * data, ssize_t dataLen)
                 break;
         }
 
+        // Clamp to minimum number of blocks
         if (widthBlocks < 2)
         {
             widthBlocks = 2;
@@ -1540,6 +1577,7 @@ bool Image::initWithETCData(const unsigned char * data, ssize_t dataLen)
 {
     const etc1_byte* header = static_cast<const etc1_byte*>(data);
 
+    //check the data
     if (! etc1_pkm_is_valid(header))
     {
         return  false;
@@ -1555,6 +1593,7 @@ bool Image::initWithETCData(const unsigned char * data, ssize_t dataLen)
 
     assert(Configuration::getInstance()->supportsETC());
 
+    //old opengl version has no define for GL_ETC1_RGB8_OES, add macro to make compiler happy.
 #ifdef GL_ETC1_RGB8_OES
     _renderFormat = Image::PixelFormat::ETC;
     _dataLen = dataLen - ETC_PKM_HEADER_SIZE;
@@ -1570,6 +1609,7 @@ bool Image::initWithETC2Data(const unsigned char * data, ssize_t dataLen)
 {
     const etc2_byte* header = static_cast<const etc2_byte*>(data);
     
+    //check the data
     if (! etc2_pkm_is_valid(header))
     {
         return  false;
@@ -1610,8 +1650,11 @@ bool Image::initWithTGAData(tImageTGA* tgaData)
     {
         CC_BREAK_IF(tgaData == nullptr);
 
+        // tgaLoadBuffer only support type 2, 3, 10
         if (2 == tgaData->type || 10 == tgaData->type)
         {
+            // true color
+            // unsupported RGB555
             if (tgaData->pixelDepth == 16)
             {
                 _renderFormat = Image::PixelFormat::RGB5A1;
@@ -1632,12 +1675,14 @@ bool Image::initWithTGAData(tImageTGA* tgaData)
         }
         else if(3 == tgaData->type)
         {
+            // gray
             if (8 == tgaData->pixelDepth)
             {
                 _renderFormat = Image::PixelFormat::I8;
             }
             else
             {
+                // actually this won't happen, if it happens, maybe the image file is not a tga
                 CCLOG("Image WARNING: unsupported gray tga data pixel format. FILE: %s", _filePath.c_str());
                 break;
             }
@@ -1709,6 +1754,7 @@ bool Image::initWithS3TCData(const unsigned char * data, ssize_t dataLen)
     memcpy((void *)_data,(void *)pixelData , _dataLen);
 
     /* if hardware supports s3tc, set pixelformat before loading mipmaps, to support non-mipmapped textures  */
+    //decode texture through hardware
 
     if (FOURCC_DXT1 == header->ddsd.DUMMYUNIONNAMEN4.ddpfPixelFormat.fourCC)
     {
@@ -1736,6 +1782,7 @@ bool Image::initWithS3TCData(const unsigned char * data, ssize_t dataLen)
         int size = ((width+3)/4)*((height+3)/4)*blockSize;
 
 
+        //decode texture through hardware
         _mipmaps[i].address = (unsigned char *)_data + encodeOffset;
         _mipmaps[i].offset = encodeOffset;
         _mipmaps[i].len = size;
@@ -1780,6 +1827,7 @@ bool Image::initWithWebpData(const unsigned char * data, ssize_t dataLen)
         _width    = config.input.width;
         _height   = config.input.height;
         
+        //we ask webp to give data with premultiplied alpha
         _hasPremultipliedAlpha = (config.input.has_alpha != 0);
         
         _dataLen = _width * _height * (config.input.has_alpha?4:3);
@@ -1819,6 +1867,7 @@ bool Image::initWithRawData(const unsigned char * data, ssize_t dataLen, int wid
         _hasPremultipliedAlpha = preMulti;
         _renderFormat = Image::PixelFormat::RGBA8888;
 
+        // only RGBA8888 supported
         int bytesPerComponent = 4;
         _dataLen = height * width * bytesPerComponent;
         _data = static_cast<unsigned char*>(malloc(_dataLen * sizeof(unsigned char)));
@@ -1835,6 +1884,7 @@ bool Image::initWithRawData(const unsigned char * data, ssize_t dataLen, int wid
 #if (CC_TARGET_PLATFORM != CC_PLATFORM_IOS)
 bool Image::saveToFile(const std::string& filename, bool isToRGB)
 {
+    //only support for Image::PixelFormat::RGB888 or Image::PixelFormat::RGBA8888 uncompressed data
     if (isCompressed() || (_renderFormat != Image::PixelFormat::RGB888 && _renderFormat != Image::PixelFormat::RGBA8888))
     {
         CCLOG("saveToFile: Image: saveToFile is only support for Image::PixelFormat::RGB888 or Image::PixelFormat::RGBA8888 uncompressed data for now");

@@ -538,7 +538,7 @@ static bool js_extension_Manifest_constructor(se::State& s)
             std::string arg1;
             ok &= seval_to_std_string(args[1], &arg1);
             if (!ok) { ok = true; break; }
-            cocos2d::extension::Manifest* cobj = new (std::nothrow) cocos2d::extension::Manifest(arg0, arg1, "");
+            cocos2d::extension::Manifest* cobj = new (std::nothrow) cocos2d::extension::Manifest(arg0, arg1);
             s.thisObject()->setPrivateData(cobj);
             return true;
         }
@@ -708,34 +708,16 @@ SE_BIND_FUNC(js_extension_AssetsManagerEx_getTotalFiles)
 
 static bool js_extension_AssetsManagerEx_checkUpdate(se::State& s)
 {
-    CC_UNUSED bool ok = true;
     cocos2d::extension::AssetsManagerEx* cobj = (cocos2d::extension::AssetsManagerEx*)s.nativeThisObject();
     SE_PRECONDITION2(cobj, false, "js_extension_AssetsManagerEx_checkUpdate : Invalid Native Object");
     const auto& args = s.args();
     size_t argc = args.size();
-    do {
-        if (argc == 1) {
-            std::string arg0;
-            ok &= seval_to_std_string(args[0], &arg0);
-            if (!ok) { ok = true; break; }
-            cobj->checkUpdate(arg0);
-            
-            return true;
-        }
-    } while(false);
+    if (argc == 0) {
+        cobj->checkUpdate();
+        return true;
+    }
     SE_REPORT_ERROR("wrong number of arguments: %d, was expecting %d", (int)argc, 0);
     return false;
-    /**
-     if (argc == 1) {
-         std::string arg0;
-         ok &= seval_to_std_string(args[0], &arg0);
-         if (!ok) { ok = true; break; }
-         bool result = cobj->loadLocalManifest(arg0);
-         ok &= boolean_to_seval(result, &s.rval());
-         SE_PRECONDITION2(ok, false, "js_extension_AssetsManagerEx_loadLocalManifest : Error processing arguments");
-         return true;
-     }
-     */
 }
 SE_BIND_FUNC(js_extension_AssetsManagerEx_checkUpdate)
 
@@ -1118,17 +1100,13 @@ static bool js_extension_AssetsManagerEx_create(se::State& s)
     const auto& args = s.args();
     size_t argc = args.size();
     CC_UNUSED bool ok = true;
-    if (argc == 3) {
+    if (argc == 2) {
         std::string arg0;
         std::string arg1;
-        std::string arg2;
-        
         ok &= seval_to_std_string(args[0], &arg0);
         ok &= seval_to_std_string(args[1], &arg1);
-        ok &= seval_to_std_string(args[2], &arg2);
-        
         SE_PRECONDITION2(ok, false, "js_extension_AssetsManagerEx_create : Error processing arguments");
-        auto result = cocos2d::extension::AssetsManagerEx::create(arg0, arg1, arg2);
+        auto result = cocos2d::extension::AssetsManagerEx::create(arg0, arg1);
         result->retain();
         auto obj = se::Object::createObjectWithClass(__jsb_cocos2d_extension_AssetsManagerEx_class);
         obj->setPrivateData(result);
@@ -1155,27 +1133,61 @@ static bool js_extension_AssetsManagerEx_constructor(se::State& s)
             std::string arg1;
             ok &= seval_to_std_string(args[1], &arg1);
             if (!ok) { ok = true; break; }
-            std::string arg2;
-            ok &= seval_to_std_string(args[2], &arg2);
+            std::function<int (const std::string&, const std::string&)> arg2;
+            do {
+                if (args[2].isObject() && args[2].toObject()->isFunction())
+                {
+                    se::Value jsThis(s.thisObject());
+                    se::Value jsFunc(args[2]);
+                    jsThis.toObject()->attachObject(jsFunc.toObject());
+                    auto lambda = [=](const std::string& larg0, const std::string& larg1) -> int {
+                        se::ScriptEngine::getInstance()->clearException();
+                        se::AutoHandleScope hs;
+            
+                        CC_UNUSED bool ok = true;
+                        se::ValueArray args;
+                        args.resize(2);
+                        ok &= std_string_to_seval(larg0, &args[0]);
+                        ok &= std_string_to_seval(larg1, &args[1]);
+                        se::Value rval;
+                        se::Object* thisObj = jsThis.isObject() ? jsThis.toObject() : nullptr;
+                        se::Object* funcObj = jsFunc.toObject();
+                        bool succeed = funcObj->call(args, thisObj, &rval);
+                        if (!succeed) {
+                            se::ScriptEngine::getInstance()->clearException();
+                        }
+                        int result;
+                        do { int32_t tmp = 0; ok &= seval_to_int32(rval, &tmp); result = (int)tmp; } while(false);
+                        SE_PRECONDITION2(ok, result, "lambda function : Error processing return value with type int");
+                        return result;
+                    };
+                    arg2 = lambda;
+                }
+                else
+                {
+                    arg2 = nullptr;
+                }
+            } while(false)
+            ;
             if (!ok) { ok = true; break; }
             cocos2d::extension::AssetsManagerEx* cobj = new (std::nothrow) cocos2d::extension::AssetsManagerEx(arg0, arg1, arg2);
             s.thisObject()->setPrivateData(cobj);
             return true;
         }
     } while(false);
-//    do {
-//        if (argc == 2) {
-//            std::string arg0;
-//            ok &= seval_to_std_string(args[0], &arg0);
-//            if (!ok) { ok = true; break; }
-//            std::string arg1;
-//            ok &= seval_to_std_string(args[1], &arg1);
-//            if (!ok) { ok = true; break; }
-//            cocos2d::extension::AssetsManagerEx* cobj = new (std::nothrow) cocos2d::extension::AssetsManagerEx(arg0, arg1);
-//            s.thisObject()->setPrivateData(cobj);
-//            return true;
-//        }
-//    } while(false);
+    do {
+        if (argc == 2) {
+            std::string arg0;
+            ok &= seval_to_std_string(args[0], &arg0);
+            if (!ok) { ok = true; break; }
+            std::string arg1;
+            ok &= seval_to_std_string(args[1], &arg1);
+            if (!ok) { ok = true; break; }
+            cocos2d::extension::AssetsManagerEx* cobj = new (std::nothrow) cocos2d::extension::AssetsManagerEx(arg0, arg1);
+            s.thisObject()->setPrivateData(cobj);
+            return true;
+        }
+    } while(false);
     SE_REPORT_ERROR("wrong number of arguments: %d", (int)argc);
     return false;
 }
