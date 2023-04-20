@@ -1,5 +1,5 @@
 set(XXHASH
-        xxhash.c
+  xxhash.c
 )
 
 add_library(xxhash STATIC

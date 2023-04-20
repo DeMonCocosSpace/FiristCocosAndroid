@@ -65,7 +65,6 @@ public:
         _buffer->resize((size + sizeof(CharT) - 1) / sizeof(CharT));
     }
     virtual void* buffer() const override {
-        // can not invoke string::front() if it is empty
 
         if (_buffer->empty())
             return nullptr;
@@ -84,7 +83,6 @@ public:
         _buffer->resize((size + sizeof(T) - 1) / sizeof(T));
     }
     virtual void* buffer() const override {
-        // can not invoke vector::front() if it is empty
 
         if (_buffer->empty())
             return nullptr;
@@ -103,7 +101,6 @@ public:
     virtual void resize(size_t size) override {
         size_t oldSize = static_cast<size_t>(_buffer->getSize());
         if (oldSize != size) {
-            // need to take buffer ownership for outer memory control
             auto old = _buffer->takeBuffer();
             void* buffer = realloc(old, size);
             if (buffer)
@@ -438,9 +435,9 @@ public:
     /**
      *  Gets the array of search paths.
      *
-     *  @return The array of search paths which may contain the prefix of default resource root path. 
+     *  @return The array of search paths which may contain the prefix of default resource root path.
      *  @note In best practise, getter function should return the value of setter function passes in.
-     *        But since we should not break the compatibility, we keep using the old logic. 
+     *        But since we should not break the compatibility, we keep using the old logic.
      *        Therefore, If you want to get the original search paths, please call 'getOriginalSearchPaths()' instead.
      *  @see fullPathForFilename(const char*).
      *  @lua NA
@@ -543,8 +540,6 @@ public:
     */
     virtual std::string getSuitableFOpen(const std::string& filenameUtf8) const;
 
-    // Converts the contents of a file to a ValueVector.
-    // This method is used internally.
     virtual ValueVector getValueVectorFromFile(const std::string& filename);
 
     /**
@@ -650,6 +645,16 @@ public:
      *  @return The file size.
      */
     virtual long getFileSize(const std::string &filepath);
+    
+    /**
+     *  load zip file from .zip to target path
+     */
+    virtual bool loadZIP(const std::string &zipFilename, const std::string &targetPath, const std::string &password/*""*/);
+    
+    /**
+     *  unzip file from .zip
+     */
+    virtual bool decompress(const std::string &zip, std::string unzipPath,const std::string &password);
 
     /** Returns the full path cache. */
     const std::unordered_map<std::string, std::string>& getFullPathCache() const { return _fullPathCache; }
@@ -774,9 +779,13 @@ protected:
      */
     virtual void valueMapCompact(ValueMap& valueMap);
     virtual void valueVectorCompact(ValueVector& valueVector);
+    
+    /**
+     *  rewirte base name
+     */
+    virtual std::string fuBasename(const std::string& path) const;
 };
 
-// end of support group
 /** @} */
 
 NS_CC_END

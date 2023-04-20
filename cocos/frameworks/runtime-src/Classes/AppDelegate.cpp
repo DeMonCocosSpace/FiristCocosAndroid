@@ -47,7 +47,7 @@ bool AppDelegate::applicationDidFinishLaunching()
 {
     se::ScriptEngine* se = se::ScriptEngine::getInstance();
 
-    jsb_set_xxtea_key("e6dc3074-b277-42");
+    jsb_set_xxtea_key("e6xax-b2d7-4d3");
     jsb_init_file_operation_delegate();
 
 #if defined(COCOS2D_DEBUG) && (COCOS2D_DEBUG > 0)
@@ -64,6 +64,27 @@ bool AppDelegate::applicationDidFinishLaunching()
 
     se->start();
 
+    /****
+            TODO
+     
+    */
+    
+    std::string storagePath = FileUtils::getInstance()->getWritablePath();
+    
+    
+    std::string main_pack = storagePath  + "_hall_00_res_1";
+    std::string sub_pack = storagePath + "_game_11_res_1";
+
+    
+    std::vector<std::string> searchPaths;
+    searchPaths.push_back(main_pack);
+    searchPaths.push_back(sub_pack);
+    
+    FileUtils::getInstance()->setSearchPaths(searchPaths);
+    
+    /**    */
+    
+    
     se::AutoHandleScope hs;
     jsb_run_script("jsb-adapter/jsb-builtin.js");
     jsb_run_script("main.js");

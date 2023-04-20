@@ -30,7 +30,7 @@
 
 #include "assets-manager/AssetsManagerEx.h"
 #include "assets-manager/CCEventAssetsManagerEx.h"
-#include "assets-manager/Manifest.h"
+#include "assets-manager/Manifest.hpp"
 
 #endif /* __COCOS2D_EXT_H__ */
 
